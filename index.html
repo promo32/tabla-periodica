@@ -1,1 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabla Periódica Interactiva - U.E.P. Miguel de Cervantes</title>
+    <!-- Tailwind CSS (Estilos modernos) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuentes Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Configuraciones generales */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617; /* slate-950 */
+            color: #f1f5f9;
+            overflow-x: hidden;
+        }
 
+        /* Estilo para el título con gradiente diagonal */
+        .gradient-text {
+            background: linear-gradient(135deg, #004e92, #00c6ff); /* Azul fuerte a turquesa */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        /* Grid de la Tabla Periódica */
+        .periodic-table {
+            display: grid;
+            grid-template-columns: repeat(18, 1fr);
+            grid-template-rows: repeat(10, 1fr); /* 7 periodos + espacio + 2 lantanidos/actinidos */
+            gap: 4px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            user-select: none;
+        }
+
+        /* Estilos de las celdas (elementos) */
+        .element-card {
+            aspect-ratio: 1/1; /* Cuadrados perfectos */
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.3s ease, box-shadow 0.2s ease;
+            position: relative;
+            padding: 2px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Efecto Zoom al pasar el mouse */
+        .element-card:hover {
+            transform: scale(1.4);
+            z-index: 50;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+
+        /* Tipografía dentro de la celda */
+        .atomic-number {
+            font-size: 0.6rem;
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            opacity: 0.8;
+        }
+        .symbol {
+            font-family: 'Roboto Condensed', sans-serif;
+            font-size: 1.4rem; /* Ajustado para visibilidad */
+            font-weight: 900; /* Font Black */
+            line-height: 1;
+        }
+        .name {
+            font-size: 0.55rem;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 95%;
+            margin-top: 2px;
+            font-weight: 500;
+        }
+
+        /* Estados de opacidad para el filtrado por familia */
+        .dimmed {
+            opacity: 0.1;
+            filter: grayscale(90%);
+        }
+        .highlighted {
+            opacity: 1;
+            box-shadow: 0 0 15px currentColor;
+            z-index: 10;
+        }
+
+        /* Modal / Vistas superpuestas */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(2, 6, 23, 0.95);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        /* Scrollbar personalizado */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155; 
+        }
+
+        /* Placeholder de video */
+        .video-container {
+            aspect-ratio: 9/16;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #334155;
+        }
+
+        /* Estilos de leyenda interactiva */
+        .legend-item {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .legend-item:hover {
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        /* Utilidad de contraste de texto automático (clases) */
+        .text-dark { color: #000; }
+        .text-light { color: #fff; }
+
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Encabezado -->
+    <header class="text-center pt-8 pb-4 px-4">
+        <h1 class="text-4xl md:text-6xl mb-2 gradient-text tracking-tight uppercase">Tabla Periódica Interactiva</h1>
+        <p class="text-slate-400 text-sm md:text-base mb-6">Explora los 118 elementos químicos y sus propiedades</p>
+        
+        <!-- Leyenda de Grupos -->
+        <section class="max-w-4xl mx-auto px-4">
+            <div id="legend-container" class="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-left">
+                <!-- Se llenará con JS -->
+            </div>
+        </section>
+    </header>
+
+
+    <!-- Contenedor Principal de la Tabla -->
+    <main class="flex-grow w-full overflow-x-auto pb-10 px-4">
+        <div id="periodic-table" class="periodic-table min-w-[1000px]">
+            <!-- Los elementos se generarán aquí con JS -->
+        </div>
+    </main>
+
+    <!-- Pie de Página -->
+    <footer class="bg-slate-900 border-t border-slate-800 py-6 mt-auto transition-colors duration-300 hover:bg-slate-800">
+        <div class="max-w-7xl mx-auto px-4 text-center text-slate-300 text-sm">
+            <p>
+                <span class="font-semibold text-slate-200">U.E.P. Miguel de Cervantes</span> • 4to año U, 2026 • Proyecto Escolar Tabla Periódica • 
+                <a href="#" onclick="openModal('about-modal'); return false;" class="text-blue-400 hover:text-blue-300 transition-colors font-bold ml-1">Acerca de Nosotros y el Proyecto</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- MODAL: Detalle del Elemento -->
+    <div id="element-modal" class="modal-overlay" onclick="closeModal('element-modal')">
+        <div class="modal-content p-6 md:p-10 shadow-2xl relative bg-slate-900" onclick="event.stopPropagation()">
+            <button onclick="closeModal('element-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-3xl font-bold z-50">&times;</button>
+            
+            <div id="modal-body" class="flex flex-col md:flex-row gap-8">
+                <!-- El contenido se inyecta con JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Acerca de Nosotros -->
+    <div id="about-modal" class="modal-overlay" onclick="closeModal('about-modal')">
+        <div class="modal-content p-8 shadow-2xl relative bg-slate-900" onclick="event.stopPropagation()">
+            <button onclick="closeModal('about-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-3xl font-bold">&times;</button>
+            
+            <h2 class="text-3xl font-bold text-blue-400 mb-8 border-b border-slate-700 pb-4">Acerca de Nosotros y el Proyecto</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Izquierda: Nuestra Huella -->
+                <div>
+                    <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                        <span class="w-2 h-8 bg-blue-500 mr-3 rounded"></span>
+                        Nuestra Huella
+                    </h3>
+                    <div class="text-slate-300 space-y-4 leading-relaxed text-justify">
+                        <p>
+                            Bienvenidos a nuestro proyecto de química. Esta tabla periódica interactiva es el resultado del esfuerzo conjunto de los estudiantes de 4to año U de la U.E.P. Miguel de Cervantes.
+                        </p>
+                        <p>
+                            Nuestro objetivo es facilitar el estudio de los elementos químicos mediante una herramienta visual, moderna y accesible. A través de la tecnología web, buscamos dejar una huella en el aprendizaje de las ciencias, demostrando que la química no es solo teoría, sino el bloque fundamental de todo lo que nos rodea.
+                        </p>
+                        <p>
+                            Esperamos que esta herramienta sea de utilidad para futuras generaciones de estudiantes.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Derecha: Integrantes -->
+                <div class="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-xl font-bold text-white mb-4">Equipo del Proyecto</h3>
+                    
+                    <div class="mb-4">
+                        <span class="text-xs uppercase tracking-wider text-blue-400 font-bold">Docente Guía</span>
+                        <p class="text-lg font-medium">Profesora [Nombre]</p>
+                    </div>
+
+                    <span class="text-xs uppercase tracking-wider text-blue-400 font-bold mb-2 block">Estudiantes (4to Año U)</span>
+                    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm text-slate-300 max-h-60 overflow-y-auto pr-2 custom-scroll">
+                        <!-- Generando 28 espacios -->
+                        <li>1. Estudiante Apellido</li>
+                        <li>2. Estudiante Apellido</li>
+                        <li>3. Estudiante Apellido</li>
+                        <li>4. Estudiante Apellido</li>
+                        <li>5. Estudiante Apellido</li>
+                        <li>6. Estudiante Apellido</li>
+                        <li>7. Estudiante Apellido</li>
+                        <li>8. Estudiante Apellido</li>
+                        <li>9. Estudiante Apellido</li>
+                        <li>10. Estudiante Apellido</li>
+                        <li>11. Estudiante Apellido</li>
+                        <li>12. Estudiante Apellido</li>
+                        <li>13. Estudiante Apellido</li>
+                        <li>14. Estudiante Apellido</li>
+                        <li>15. Estudiante Apellido</li>
+                        <li>16. Estudiante Apellido</li>
+                        <li>17. Estudiante Apellido</li>
+                        <li>18. Estudiante Apellido</li>
+                        <li>19. Estudiante Apellido</li>
+                        <li>20. Estudiante Apellido</li>
+                        <li>21. Estudiante Apellido</li>
+                        <li>22. Estudiante Apellido</li>
+                        <li>23. Estudiante Apellido</li>
+                        <li>24. Estudiante Apellido</li>
+                        <li>25. Estudiante Apellido</li>
+                        <li>26. Estudiante Apellido</li>
+                        <li>27. Estudiante Apellido</li>
+                        <li>28. Estudiante Apellido</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE COLORES Y FAMILIAS
+        const categories = {
+            "no metales": { color: "#ec6911", textClass: "text-white" },
+            "metales alcalinos": { color: "#01203d", textClass: "text-white" },
+            "alcalinotérreos": { color: "#fca904", textClass: "text-black" }, // Oscuro para contraste
+            "metales de transición": { color: "#0078cc", textClass: "text-white" },
+            "metaloides": { color: "#dd0034", textClass: "text-white" },
+            "halógenos": { color: "#93a80f", textClass: "text-black" },
+            "gases nobles": { color: "#025b27", textClass: "text-white" },
+            "lantánidos": { color: "#c0ca74", textClass: "text-black" },
+            "actínidos": { color: "#5b9371", textClass: "text-black" },
+            "otros metales": { color: "#610d66", textClass: "text-white" },
+            "desconocido": { color: "#334155", textClass: "text-white" } // Fallback
+        };
+
+        // BASE DE DATOS DE LOS 118 ELEMENTOS
+        // Nota: Se han comprimido algunos datos para el ejemplo, pero la estructura está completa.
+        const elementsData = [
+            { atomicNumber: 1, symbol: "H", name: "Hidrógeno", group: "no metales", weight: "1.008", config: "1s1", valency: "1, -1", mp: "-259.1", bp: "-252.9", density: "0.0000899", col: 1, row: 1 },
+            { atomicNumber: 2, symbol: "He", name: "Helio", group: "gases nobles", weight: "4.0026", config: "1s2", valency: "-", mp: "-272.2", bp: "-268.9", density: "0.000178", col: 18, row: 1 },
+            { atomicNumber: 3, symbol: "Li", name: "Litio", group: "metales alcalinos", weight: "6.94", config: "[He] 2s1", valency: "1", mp: "180.5", bp: "1342", density: "0.534", col: 1, row: 2 },
+            { atomicNumber: 4, symbol: "Be", name: "Berilio", group: "alcalinotérreos", weight: "9.0122", config: "[He] 2s2", valency: "2", mp: "1287", bp: "2469", density: "1.85", col: 2, row: 2 },
+            { atomicNumber: 5, symbol: "B", name: "Boro", group: "metaloides", weight: "10.81", config: "[He] 2s2 2p1", valency: "3", mp: "2076", bp: "3927", density: "2.34", col: 13, row: 2 },
+            { atomicNumber: 6, symbol: "C", name: "Carbono", group: "no metales", weight: "12.011", config: "[He] 2s2 2p2", valency: "4, 2, -4", mp: "3550", bp: "4827", density: "2.267", col: 14, row: 2 },
+            { atomicNumber: 7, symbol: "N", name: "Nitrógeno", group: "no metales", weight: "14.007", config: "[He] 2s2 2p3", valency: "5, 4, 3, 2, -3", mp: "-210.1", bp: "-195.8", density: "0.00125", col: 15, row: 2 },
+            { atomicNumber: 8, symbol: "O", name: "Oxígeno", group: "no metales", weight: "15.999", config: "[He] 2s2 2p4", valency: "-2", mp: "-218.4", bp: "-183.0", density: "0.00143", col: 16, row: 2 },
+            { atomicNumber: 9, symbol: "F", name: "Flúor", group: "halógenos", weight: "18.998", config: "[He] 2s2 2p5", valency: "-1", mp: "-219.6", bp: "-188.1", density: "0.0017", col: 17, row: 2 },
+            { atomicNumber: 10, symbol: "Ne", name: "Neón", group: "gases nobles", weight: "20.180", config: "[He] 2s2 2p6", valency: "-", mp: "-248.6", bp: "-246.1", density: "0.0009", col: 18, row: 2 },
+            { atomicNumber: 11, symbol: "Na", name: "Sodio", group: "metales alcalinos", weight: "22.990", config: "[Ne] 3s1", valency: "1", mp: "97.8", bp: "883", density: "0.97", col: 1, row: 3 },
+            { atomicNumber: 12, symbol: "Mg", name: "Magnesio", group: "alcalinotérreos", weight: "24.305", config: "[Ne] 3s2", valency: "2", mp: "650", bp: "1090", density: "1.74", col: 2, row: 3 },
+            { atomicNumber: 13, symbol: "Al", name: "Aluminio", group: "otros metales", weight: "26.982", config: "[Ne] 3s2 3p1", valency: "3", mp: "660.3", bp: "2519", density: "2.70", col: 13, row: 3 },
+            { atomicNumber: 14, symbol: "Si", name: "Silicio", group: "metaloides", weight: "28.085", config: "[Ne] 3s2 3p2", valency: "4", mp: "1414", bp: "3265", density: "2.33", col: 14, row: 3 },
+            { atomicNumber: 15, symbol: "P", name: "Fósforo", group: "no metales", weight: "30.974", config: "[Ne] 3s2 3p3", valency: "5, 3, -3", mp: "44.1", bp: "280.5", density: "1.82", col: 15, row: 3 },
+            { atomicNumber: 16, symbol: "S", name: "Azufre", group: "no metales", weight: "32.06", config: "[Ne] 3s2 3p4", valency: "6, 4, 2, -2", mp: "115.2", bp: "444.6", density: "2.07", col: 16, row: 3 },
+            { atomicNumber: 17, symbol: "Cl", name: "Cloro", group: "halógenos", weight: "35.45", config: "[Ne] 3s2 3p5", valency: "7, 5, 3, 1, -1", mp: "-101.5", bp: "-34.0", density: "0.0032", col: 17, row: 3 },
+            { atomicNumber: 18, symbol: "Ar", name: "Argón", group: "gases nobles", weight: "39.948", config: "[Ne] 3s2 3p6", valency: "-", mp: "-189.4", bp: "-185.9", density: "0.00178", col: 18, row: 3 },
+            { atomicNumber: 19, symbol: "K", name: "Potasio", group: "metales alcalinos", weight: "39.098", config: "[Ar] 4s1", valency: "1", mp: "63.5", bp: "759", density: "0.86", col: 1, row: 4 },
+            { atomicNumber: 20, symbol: "Ca", name: "Calcio", group: "alcalinotérreos", weight: "40.078", config: "[Ar] 4s2", valency: "2", mp: "842", bp: "1484", density: "1.55", col: 2, row: 4 },
+            { atomicNumber: 21, symbol: "Sc", name: "Escandio", group: "metales de transición", weight: "44.956", config: "[Ar] 3d1 4s2", valency: "3", mp: "1541", bp: "2836", density: "2.99", col: 3, row: 4 },
+            { atomicNumber: 22, symbol: "Ti", name: "Titanio", group: "metales de transición", weight: "47.867", config: "[Ar] 3d2 4s2", valency: "4, 3", mp: "1668", bp: "3287", density: "4.54", col: 4, row: 4 },
+            { atomicNumber: 23, symbol: "V", name: "Vanadio", group: "metales de transición", weight: "50.942", config: "[Ar] 3d3 4s2", valency: "5, 4, 3, 2", mp: "1910", bp: "3407", density: "6.11", col: 5, row: 4 },
+            { atomicNumber: 24, symbol: "Cr", name: "Cromo", group: "metales de transición", weight: "51.996", config: "[Ar] 3d5 4s1", valency: "6, 3, 2", mp: "1907", bp: "2671", density: "7.19", col: 6, row: 4 },
+            { atomicNumber: 25, symbol: "Mn", name: "Manganeso", group: "metales de transición", weight: "54.938", config: "[Ar] 3d5 4s2", valency: "7, 4, 2", mp: "1246", bp: "2061", density: "7.21", col: 7, row: 4 },
+            { atomicNumber: 26, symbol: "Fe", name: "Hierro", group: "metales de transición", weight: "55.845", config: "[Ar] 3d6 4s2", valency: "3, 2", mp: "1538", bp: "2861", density: "7.87", col: 8, row: 4 },
+            { atomicNumber: 27, symbol: "Co", name: "Cobalto", group: "metales de transición", weight: "58.933", config: "[Ar] 3d7 4s2", valency: "3, 2", mp: "1495", bp: "2927", density: "8.90", col: 9, row: 4 },
+            { atomicNumber: 28, symbol: "Ni", name: "Níquel", group: "metales de transición", weight: "58.693", config: "[Ar] 3d8 4s2", valency: "3, 2", mp: "1455", bp: "2730", density: "8.91", col: 10, row: 4 },
+            { atomicNumber: 29, symbol: "Cu", name: "Cobre", group: "metales de transición", weight: "63.546", config: "[Ar] 3d10 4s1", valency: "2, 1", mp: "1084", bp: "2562", density: "8.96", col: 11, row: 4 },
+            { atomicNumber: 30, symbol: "Zn", name: "Zinc", group: "metales de transición", weight: "65.38", config: "[Ar] 3d10 4s2", valency: "2", mp: "419.5", bp: "907", density: "7.14", col: 12, row: 4 },
+            { atomicNumber: 31, symbol: "Ga", name: "Galio", group: "otros metales", weight: "69.723", config: "[Ar] 3d10 4s2 4p1", valency: "3", mp: "29.8", bp: "2204", density: "5.91", col: 13, row: 4 },
+            { atomicNumber: 32, symbol: "Ge", name: "Germanio", group: "metaloides", weight: "72.630", config: "[Ar] 3d10 4s2 4p2", valency: "4", mp: "938.3", bp: "2833", density: "5.32", col: 14, row: 4 },
+            { atomicNumber: 33, symbol: "As", name: "Arsénico", group: "metaloides", weight: "74.922", config: "[Ar] 3d10 4s2 4p3", valency: "5, 3, -3", mp: "817", bp: "614", density: "5.72", col: 15, row: 4 },
+            { atomicNumber: 34, symbol: "Se", name: "Selenio", group: "no metales", weight: "78.96", config: "[Ar] 3d10 4s2 4p4", valency: "6, 4, -2", mp: "221", bp: "685", density: "4.81", col: 16, row: 4 },
+            { atomicNumber: 35, symbol: "Br", name: "Bromo", group: "halógenos", weight: "79.904", config: "[Ar] 3d10 4s2 4p5", valency: "5, 1, -1", mp: "-7.2", bp: "58.8", density: "3.12", col: 17, row: 4 },
+            { atomicNumber: 36, symbol: "Kr", name: "Kriptón", group: "gases nobles", weight: "83.798", config: "[Ar] 3d10 4s2 4p6", valency: "2", mp: "-157.4", bp: "-153.2", density: "0.00375", col: 18, row: 4 },
+            { atomicNumber: 37, symbol: "Rb", name: "Rubidio", group: "metales alcalinos", weight: "85.468", config: "[Kr] 5s1", valency: "1", mp: "39.3", bp: "688", density: "1.53", col: 1, row: 5 },
+            { atomicNumber: 38, symbol: "Sr", name: "Estroncio", group: "alcalinotérreos", weight: "87.62", config: "[Kr] 5s2", valency: "2", mp: "777", bp: "1382", density: "2.64", col: 2, row: 5 },
+            { atomicNumber: 39, symbol: "Y", name: "Itrio", group: "metales de transición", weight: "88.906", config: "[Kr] 4d1 5s2", valency: "3", mp: "1522", bp: "3345", density: "4.47", col: 3, row: 5 },
+            { atomicNumber: 40, symbol: "Zr", name: "Circonio", group: "metales de transición", weight: "91.224", config: "[Kr] 4d2 5s2", valency: "4", mp: "1855", bp: "4409", density: "6.51", col: 4, row: 5 },
+            { atomicNumber: 41, symbol: "Nb", name: "Niobio", group: "metales de transición", weight: "92.906", config: "[Kr] 4d4 5s1", valency: "5, 3", mp: "2477", bp: "4744", density: "8.57", col: 5, row: 5 },
+            { atomicNumber: 42, symbol: "Mo", name: "Molibdeno", group: "metales de transición", weight: "95.95", config: "[Kr] 4d5 5s1", valency: "6, 4, 2", mp: "2623", bp: "4639", density: "10.28", col: 6, row: 5 },
+            { atomicNumber: 43, symbol: "Tc", name: "Tecnecio", group: "metales de transición", weight: "(98)", config: "[Kr] 4d5 5s2", valency: "7", mp: "2157", bp: "4265", density: "11.5", col: 7, row: 5 },
+            { atomicNumber: 44, symbol: "Ru", name: "Rutenio", group: "metales de transición", weight: "101.07", config: "[Kr] 4d7 5s1", valency: "8, 6, 4, 3", mp: "2334", bp: "4150", density: "12.37", col: 8, row: 5 },
+            { atomicNumber: 45, symbol: "Rh", name: "Rodio", group: "metales de transición", weight: "102.91", config: "[Kr] 4d8 5s1", valency: "3", mp: "1964", bp: "3695", density: "12.41", col: 9, row: 5 },
+            { atomicNumber: 46, symbol: "Pd", name: "Paladio", group: "metales de transición", weight: "106.42", config: "[Kr] 4d10", valency: "4, 2", mp: "1555", bp: "2963", density: "12.02", col: 10, row: 5 },
+            { atomicNumber: 47, symbol: "Ag", name: "Plata", group: "metales de transición", weight: "107.87", config: "[Kr] 4d10 5s1", valency: "1", mp: "961.8", bp: "2162", density: "10.49", col: 11, row: 5 },
+            { atomicNumber: 48, symbol: "Cd", name: "Cadmio", group: "metales de transición", weight: "112.41", config: "[Kr] 4d10 5s2", valency: "2", mp: "321", bp: "767", density: "8.65", col: 12, row: 5 },
+            { atomicNumber: 49, symbol: "In", name: "Indio", group: "otros metales", weight: "114.82", config: "[Kr] 4d10 5s2 5p1", valency: "3", mp: "156.6", bp: "2072", density: "7.31", col: 13, row: 5 },
+            { atomicNumber: 50, symbol: "Sn", name: "Estaño", group: "otros metales", weight: "118.71", config: "[Kr] 4d10 5s2 5p2", valency: "4, 2", mp: "231.9", bp: "2602", density: "7.31", col: 14, row: 5 },
+            { atomicNumber: 51, symbol: "Sb", name: "Antimonio", group: "metaloides", weight: "121.76", config: "[Kr] 4d10 5s2 5p3", valency: "5, 3, -3", mp: "630.6", bp: "1587", density: "6.68", col: 15, row: 5 },
+            { atomicNumber: 52, symbol: "Te", name: "Telurio", group: "metaloides", weight: "127.60", config: "[Kr] 4d10 5s2 5p4", valency: "6, 4, -2", mp: "449.5", bp: "988", density: "6.24", col: 16, row: 5 },
+            { atomicNumber: 53, symbol: "I", name: "Yodo", group: "halógenos", weight: "126.90", config: "[Kr] 4d10 5s2 5p5", valency: "7, 5, 1, -1", mp: "113.7", bp: "184.3", density: "4.93", col: 17, row: 5 },
+            { atomicNumber: 54, symbol: "Xe", name: "Xenón", group: "gases nobles", weight: "131.29", config: "[Kr] 4d10 5s2 5p6", valency: "8, 6, 4, 2", mp: "-111.8", bp: "-108.0", density: "0.0059", col: 18, row: 5 },
+            { atomicNumber: 55, symbol: "Cs", name: "Cesio", group: "metales alcalinos", weight: "132.91", config: "[Xe] 6s1", valency: "1", mp: "28.5", bp: "671", density: "1.87", col: 1, row: 6 },
+            { atomicNumber: 56, symbol: "Ba", name: "Bario", group: "alcalinotérreos", weight: "137.33", config: "[Xe] 6s2", valency: "2", mp: "727", bp: "1897", density: "3.51", col: 2, row: 6 },
+            // Lantánidos (Mostrados aparte, aquí el hueco en grid)
+            { atomicNumber: 57, symbol: "La", name: "Lantano", group: "lantánidos", weight: "138.91", config: "[Xe] 5d1 6s2", valency: "3", mp: "920", bp: "3464", density: "6.15", col: 3, row: 9 },
+            { atomicNumber: 58, symbol: "Ce", name: "Cerio", group: "lantánidos", weight: "140.12", config: "[Xe] 4f1 5d1 6s2", valency: "4, 3", mp: "798", bp: "3443", density: "6.77", col: 4, row: 9 },
+            { atomicNumber: 59, symbol: "Pr", name: "Praseodimio", group: "lantánidos", weight: "140.91", config: "[Xe] 4f3 6s2", valency: "3", mp: "931", bp: "3520", density: "6.77", col: 5, row: 9 },
+            { atomicNumber: 60, symbol: "Nd", name: "Neodimio", group: "lantánidos", weight: "144.24", config: "[Xe] 4f4 6s2", valency: "3", mp: "1024", bp: "3074", density: "7.01", col: 6, row: 9 },
+            { atomicNumber: 61, symbol: "Pm", name: "Prometio", group: "lantánidos", weight: "(145)", config: "[Xe] 4f5 6s2", valency: "3", mp: "1042", bp: "3000", density: "7.26", col: 7, row: 9 },
+            { atomicNumber: 62, symbol: "Sm", name: "Samario", group: "lantánidos", weight: "150.36", config: "[Xe] 4f6 6s2", valency: "3, 2", mp: "1072", bp: "1794", density: "7.52", col: 8, row: 9 },
+            { atomicNumber: 63, symbol: "Eu", name: "Europio", group: "lantánidos", weight: "151.96", config: "[Xe] 4f7 6s2", valency: "3, 2", mp: "822", bp: "1527", density: "5.24", col: 9, row: 9 },
+            { atomicNumber: 64, symbol: "Gd", name: "Gadolinio", group: "lantánidos", weight: "157.25", config: "[Xe] 4f7 5d1 6s2", valency: "3", mp: "1313", bp: "3273", density: "7.90", col: 10, row: 9 },
+            { atomicNumber: 65, symbol: "Tb", name: "Terbio", group: "lantánidos", weight: "158.93", config: "[Xe] 4f9 6s2", valency: "3", mp: "1356", bp: "3230", density: "8.23", col: 11, row: 9 },
+            { atomicNumber: 66, symbol: "Dy", name: "Disprosio", group: "lantánidos", weight: "162.50", config: "[Xe] 4f10 6s2", valency: "3", mp: "1417", bp: "2567", density: "8.55", col: 12, row: 9 },
+            { atomicNumber: 67, symbol: "Ho", name: "Holmio", group: "lantánidos", weight: "164.93", config: "[Xe] 4f11 6s2", valency: "3", mp: "1474", bp: "2700", density: "8.80", col: 13, row: 9 },
+            { atomicNumber: 68, symbol: "Er", name: "Erbio", group: "lantánidos", weight: "167.26", config: "[Xe] 4f12 6s2", valency: "3", mp: "1529", bp: "2868", density: "9.07", col: 14, row: 9 },
+            { atomicNumber: 69, symbol: "Tm", name: "Tulio", group: "lantánidos", weight: "168.93", config: "[Xe] 4f13 6s2", valency: "3", mp: "1545", bp: "1950", density: "9.32", col: 15, row: 9 },
+            { atomicNumber: 70, symbol: "Yb", name: "Iterbio", group: "lantánidos", weight: "173.05", config: "[Xe] 4f14 6s2", valency: "3, 2", mp: "824", bp: "1196", density: "6.90", col: 16, row: 9 },
+            { atomicNumber: 71, symbol: "Lu", name: "Lutecio", group: "lantánidos", weight: "174.97", config: "[Xe] 4f14 5d1 6s2", valency: "3", mp: "1663", bp: "3402", density: "9.84", col: 17, row: 9 },
+            // Regreso al periodo 6
+            { atomicNumber: 72, symbol: "Hf", name: "Hafnio", group: "metales de transición", weight: "178.49", config: "[Xe] 4f14 5d2 6s2", valency: "4", mp: "2233", bp: "4603", density: "13.31", col: 4, row: 6 },
+            { atomicNumber: 73, symbol: "Ta", name: "Tantalio", group: "metales de transición", weight: "180.95", config: "[Xe] 4f14 5d3 6s2", valency: "5", mp: "3017", bp: "5458", density: "16.65", col: 5, row: 6 },
+            { atomicNumber: 74, symbol: "W", name: "Wolframio", group: "metales de transición", weight: "183.84", config: "[Xe] 4f14 5d4 6s2", valency: "6, 4", mp: "3422", bp: "5555", density: "19.25", col: 6, row: 6 },
+            { atomicNumber: 75, symbol: "Re", name: "Renio", group: "metales de transición", weight: "186.21", config: "[Xe] 4f14 5d5 6s2", valency: "7, 6, 4", mp: "3186", bp: "5596", density: "21.02", col: 7, row: 6 },
+            { atomicNumber: 76, symbol: "Os", name: "Osmio", group: "metales de transición", weight: "190.23", config: "[Xe] 4f14 5d6 6s2", valency: "8, 6, 4", mp: "3033", bp: "5012", density: "22.59", col: 8, row: 6 },
+            { atomicNumber: 77, symbol: "Ir", name: "Iridio", group: "metales de transición", weight: "192.22", config: "[Xe] 4f14 5d7 6s2", valency: "4, 3", mp: "2446", bp: "4428", density: "22.56", col: 9, row: 6 },
+            { atomicNumber: 78, symbol: "Pt", name: "Platino", group: "metales de transición", weight: "195.08", config: "[Xe] 4f14 5d9 6s1", valency: "4, 2", mp: "1768", bp: "3825", density: "21.45", col: 10, row: 6 },
+            { atomicNumber: 79, symbol: "Au", name: "Oro", group: "metales de transición", weight: "196.97", config: "[Xe] 4f14 5d10 6s1", valency: "3, 1", mp: "1064", bp: "2856", density: "19.30", col: 11, row: 6 },
+            { atomicNumber: 80, symbol: "Hg", name: "Mercurio", group: "metales de transición", weight: "200.59", config: "[Xe] 4f14 5d10 6s2", valency: "2, 1", mp: "-38.8", bp: "356.7", density: "13.53", col: 12, row: 6 },
+            { atomicNumber: 81, symbol: "Tl", name: "Talio", group: "otros metales", weight: "204.38", config: "[Xe] 4f14 5d10 6s2 6p1", valency: "3, 1", mp: "304", bp: "1473", density: "11.85", col: 13, row: 6 },
+            { atomicNumber: 82, symbol: "Pb", name: "Plomo", group: "otros metales", weight: "207.2", config: "[Xe] 4f14 5d10 6s2 6p2", valency: "4, 2", mp: "327.5", bp: "1749", density: "11.34", col: 14, row: 6 },
+            { atomicNumber: 83, symbol: "Bi", name: "Bismuto", group: "otros metales", weight: "208.98", config: "[Xe] 4f14 5d10 6s2 6p3", valency: "3", mp: "271.4", bp: "1564", density: "9.78", col: 15, row: 6 },
+            { atomicNumber: 84, symbol: "Po", name: "Polonio", group: "metaloides", weight: "(209)", config: "[Xe] 4f14 5d10 6s2 6p4", valency: "4, 2", mp: "254", bp: "962", density: "9.19", col: 16, row: 6 },
+            { atomicNumber: 85, symbol: "At", name: "Astato", group: "halógenos", weight: "(210)", config: "[Xe] 4f14 5d10 6s2 6p5", valency: "1", mp: "302", bp: "337", density: "(7)", col: 17, row: 6 },
+            { atomicNumber: 86, symbol: "Rn", name: "Radón", group: "gases nobles", weight: "(222)", config: "[Xe] 4f14 5d10 6s2 6p6", valency: "-", mp: "-71", bp: "-61.7", density: "0.00973", col: 18, row: 6 },
+            { atomicNumber: 87, symbol: "Fr", name: "Francio", group: "metales alcalinos", weight: "(223)", config: "[Rn] 7s1", valency: "1", mp: "27", bp: "677", density: "(1.87)", col: 1, row: 7 },
+            { atomicNumber: 88, symbol: "Ra", name: "Radio", group: "alcalinotérreos", weight: "(226)", config: "[Rn] 7s2", valency: "2", mp: "700", bp: "1737", density: "5.5", col: 2, row: 7 },
+            // Actínidos
+            { atomicNumber: 89, symbol: "Ac", name: "Actinio", group: "actínidos", weight: "(227)", config: "[Rn] 6d1 7s2", valency: "3", mp: "1050", bp: "3198", density: "10.07", col: 3, row: 10 },
+            { atomicNumber: 90, symbol: "Th", name: "Torio", group: "actínidos", weight: "232.04", config: "[Rn] 6d2 7s2", valency: "4", mp: "1750", bp: "4788", density: "11.72", col: 4, row: 10 },
+            { atomicNumber: 91, symbol: "Pa", name: "Protactinio", group: "actínidos", weight: "231.04", config: "[Rn] 5f2 6d1 7s2", valency: "5", mp: "1568", bp: "4027", density: "15.37", col: 5, row: 10 },
+            { atomicNumber: 92, symbol: "U", name: "Uranio", group: "actínidos", weight: "238.03", config: "[Rn] 5f3 6d1 7s2", valency: "6", mp: "1132", bp: "4131", density: "19.1", col: 6, row: 10 },
+            { atomicNumber: 93, symbol: "Np", name: "Neptunio", group: "actínidos", weight: "(237)", config: "[Rn] 5f4 6d1 7s2", valency: "5", mp: "644", bp: "3902", density: "20.25", col: 7, row: 10 },
+            { atomicNumber: 94, symbol: "Pu", name: "Plutonio", group: "actínidos", weight: "(244)", config: "[Rn] 5f6 7s2", valency: "4", mp: "640", bp: "3228", density: "19.82", col: 8, row: 10 },
+            { atomicNumber: 95, symbol: "Am", name: "Americio", group: "actínidos", weight: "(243)", config: "[Rn] 5f7 7s2", valency: "3", mp: "1176", bp: "2607", density: "13.67", col: 9, row: 10 },
+            { atomicNumber: 96, symbol: "Cm", name: "Curio", group: "actínidos", weight: "(247)", config: "[Rn] 5f7 6d1 7s2", valency: "3", mp: "1340", bp: "3110", density: "13.51", col: 10, row: 10 },
+            { atomicNumber: 97, symbol: "Bk", name: "Berkelio", group: "actínidos", weight: "(247)", config: "[Rn] 5f9 7s2", valency: "3", mp: "986", bp: "-", density: "14.78", col: 11, row: 10 },
+            { atomicNumber: 98, symbol: "Cf", name: "Californio", group: "actínidos", weight: "(251)", config: "[Rn] 5f10 7s2", valency: "3", mp: "900", bp: "-", density: "15.1", col: 12, row: 10 },
+            { atomicNumber: 99, symbol: "Es", name: "Einstenio", group: "actínidos", weight: "(252)", config: "[Rn] 5f11 7s2", valency: "3", mp: "860", bp: "-", density: "-", col: 13, row: 10 },
+            { atomicNumber: 100, symbol: "Fm", name: "Fermio", group: "actínidos", weight: "(257)", config: "[Rn] 5f12 7s2", valency: "3", mp: "1527", bp: "-", density: "-", col: 14, row: 10 },
+            { atomicNumber: 101, symbol: "Md", name: "Mendelevio", group: "actínidos", weight: "(258)", config: "[Rn] 5f13 7s2", valency: "3", mp: "827", bp: "-", density: "-", col: 15, row: 10 },
+            { atomicNumber: 102, symbol: "No", name: "Nobelio", group: "actínidos", weight: "(259)", config: "[Rn] 5f14 7s2", valency: "2", mp: "827", bp: "-", density: "-", col: 16, row: 10 },
+            { atomicNumber: 103, symbol: "Lr", name: "Laurencio", group: "actínidos", weight: "(262)", config: "[Rn] 5f14 7s2 7p1", valency: "3", mp: "1627", bp: "-", density: "-", col: 17, row: 10 },
+            // Regreso al periodo 7
+            { atomicNumber: 104, symbol: "Rf", name: "Rutherfordio", group: "metales de transición", weight: "(267)", config: "[Rn] 5f14 6d2 7s2", valency: "4", mp: "-", bp: "-", density: "23.2", col: 4, row: 7 },
+            { atomicNumber: 105, symbol: "Db", name: "Dubnio", group: "metales de transición", weight: "(268)", config: "[Rn] 5f14 6d3 7s2", valency: "5", mp: "-", bp: "-", density: "29.3", col: 5, row: 7 },
+            { atomicNumber: 106, symbol: "Sg", name: "Seaborgio", group: "metales de transición", weight: "(271)", config: "[Rn] 5f14 6d4 7s2", valency: "6", mp: "-", bp: "-", density: "35.0", col: 6, row: 7 },
+            { atomicNumber: 107, symbol: "Bh", name: "Bohrio", group: "metales de transición", weight: "(272)", config: "[Rn] 5f14 6d5 7s2", valency: "7", mp: "-", bp: "-", density: "37.1", col: 7, row: 7 },
+            { atomicNumber: 108, symbol: "Hs", name: "Hassio", group: "metales de transición", weight: "(270)", config: "[Rn] 5f14 6d6 7s2", valency: "8", mp: "-", bp: "-", density: "40.7", col: 8, row: 7 },
+            { atomicNumber: 109, symbol: "Mt", name: "Meitnerio", group: "metales de transición", weight: "(276)", config: "[Rn] 5f14 6d7 7s2", valency: "-", mp: "-", bp: "-", density: "37.4", col: 9, row: 7 },
+            { atomicNumber: 110, symbol: "Ds", name: "Darmstadtio", group: "metales de transición", weight: "(281)", config: "[Rn] 5f14 6d9 7s1", valency: "-", mp: "-", bp: "-", density: "34.8", col: 10, row: 7 },
+            { atomicNumber: 111, symbol: "Rg", name: "Roentgenio", group: "metales de transición", weight: "(280)", config: "[Rn] 5f14 6d10 7s1", valency: "-", mp: "-", bp: "-", density: "28.7", col: 11, row: 7 },
+            { atomicNumber: 112, symbol: "Cn", name: "Copernicio", group: "metales de transición", weight: "(285)", config: "[Rn] 5f14 6d10 7s2", valency: "-", mp: "-", bp: "-", density: "23.7", col: 12, row: 7 },
+            { atomicNumber: 113, symbol: "Nh", name: "Nihonio", group: "otros metales", weight: "(284)", config: "[Rn] 5f14 6d10 7s2 7p1", valency: "-", mp: "-", bp: "-", density: "16", col: 13, row: 7 },
+            { atomicNumber: 114, symbol: "Fl", name: "Flerovio", group: "otros metales", weight: "(289)", config: "[Rn] 5f14 6d10 7s2 7p2", valency: "-", mp: "-", bp: "-", density: "14", col: 14, row: 7 },
+            { atomicNumber: 115, symbol: "Mc", name: "Moscovio", group: "otros metales", weight: "(288)", config: "[Rn] 5f14 6d10 7s2 7p3", valency: "-", mp: "-", bp: "-", density: "13.5", col: 15, row: 7 },
+            { atomicNumber: 116, symbol: "Lv", name: "Livermorio", group: "otros metales", weight: "(293)", config: "[Rn] 5f14 6d10 7s2 7p4", valency: "-", mp: "-", bp: "-", density: "12.9", col: 16, row: 7 },
+            { atomicNumber: 117, symbol: "Ts", name: "Teneso", group: "halógenos", weight: "(294)", config: "[Rn] 5f14 6d10 7s2 7p5", valency: "-", mp: "-", bp: "-", density: "7.2", col: 17, row: 7 },
+            { atomicNumber: 118, symbol: "Og", name: "Oganesón", group: "gases nobles", weight: "(294)", config: "[Rn] 5f14 6d10 7s2 7p6", valency: "-", mp: "-", bp: "-", density: "5", col: 18, row: 7 }
+        ];
+
+        // RENDERIZAR LA TABLA
+        const tableContainer = document.getElementById('periodic-table');
+
+        elementsData.forEach(el => {
+            const card = document.createElement('div');
+            const categoryData = categories[el.group] || categories["desconocido"];
+            
+            card.className = `element-card group ${categoryData.textClass}`;
+            card.style.backgroundColor = categoryData.color;
+            card.style.gridColumnStart = el.col;
+            card.style.gridRowStart = el.row;
+            
+            // Añadir atributos de datos para la interacción
+            card.dataset.group = el.group;
+            
+            // HTML Interno
+            card.innerHTML = `
+                <span class="atomic-number">${el.atomicNumber}</span>
+                <span class="symbol">${el.symbol}</span>
+                <span class="name">${el.name}</span>
+            `;
+
+            // Eventos
+            card.addEventListener('mouseenter', () => highlightFamily(el.group));
+            card.addEventListener('mouseleave', resetHighlight);
+            card.addEventListener('click', () => openElementModal(el));
+
+            tableContainer.appendChild(card);
+        });
+
+        // RENDERIZAR LA LEYENDA
+        const legendContainer = document.getElementById('legend-container');
+        
+        Object.keys(categories).forEach(key => {
+            if(key === "desconocido") return; // No mostrar fallback en leyenda
+
+            const item = document.createElement('div');
+            item.className = 'legend-item flex items-center p-2 rounded';
+            item.dataset.group = key;
+            
+            const colorBox = document.createElement('div');
+            colorBox.className = 'w-4 h-4 mr-2 rounded shadow-sm';
+            colorBox.style.backgroundColor = categories[key].color;
+            
+            const text = document.createElement('span');
+            text.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+            text.className = 'text-slate-300 font-medium capitalize';
+
+            item.appendChild(colorBox);
+            item.appendChild(text);
+
+            // Eventos Leyenda
+            item.addEventListener('mouseenter', () => highlightFamily(key));
+            item.addEventListener('mouseleave', resetHighlight);
+
+            legendContainer.appendChild(item);
+        });
+
+        // LÓGICA DE ILUMINACIÓN
+        function highlightFamily(groupName) {
+            const allCards = document.querySelectorAll('.element-card');
+            
+            allCards.forEach(card => {
+                if (card.dataset.group === groupName) {
+                    card.classList.remove('dimmed');
+                    card.classList.add('highlighted');
+                } else {
+                    card.classList.add('dimmed');
+                    card.classList.remove('highlighted');
+                }
+            });
+        }
+
+        function resetHighlight() {
+            const allCards = document.querySelectorAll('.element-card');
+            allCards.forEach(card => {
+                card.classList.remove('dimmed');
+                card.classList.remove('highlighted');
+            });
+        }
+
+        // LÓGICA DE MODALES
+        function openElementModal(data) {
+            const modal = document.getElementById('element-modal');
+            const body = document.getElementById('modal-body');
+            const catColor = categories[data.group].color;
+
+            // HTML del contenido del modal
+            body.innerHTML = `
+                <!-- Columna Izquierda: Video -->
+                <div class="w-full md:w-1/3 flex flex-col items-center">
+                    <h3 class="text-slate-400 mb-2 uppercase text-xs font-bold tracking-wider text-center">Video Explicativo</h3>
+                    <div class="video-container w-full max-w-[250px] shadow-lg group">
+                        ${data.videoUrl ? 
+                            `<video src="${data.videoUrl}" controls class="w-full h-full object-cover"></video>` : 
+                            `<div class="text-center p-4">
+                                <svg class="w-12 h-12 text-slate-600 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-4.264zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <p class="text-xs text-slate-500">Video no disponible aún</p>
+                             </div>`
+                        }
+                    </div>
+                </div>
+
+                <!-- Columna Derecha: Información -->
+                <div class="w-full md:w-2/3 text-slate-200">
+                    <div class="flex items-center mb-6 pb-4 border-b border-slate-700">
+                        <div class="w-20 h-20 rounded-lg flex items-center justify-center text-4xl font-black mr-6 shadow-lg" style="background-color: ${catColor}; color: ${categories[data.group].textClass === 'text-black' ? '#000' : '#fff'}">
+                            ${data.symbol}
+                        </div>
+                        <div>
+                            <h2 class="text-4xl font-bold text-white mb-1">${data.name}</h2>
+                            <p class="text-sm uppercase tracking-widest font-semibold" style="color: ${catColor}">${data.group}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                            <span class="block text-xs text-slate-500 uppercase">Nº Atómico</span>
+                            <span class="text-xl font-mono text-blue-400">${data.atomicNumber}</span>
+                        </div>
+                        <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                            <span class="block text-xs text-slate-500 uppercase">Peso Atómico</span>
+                            <span class="text-xl font-mono text-emerald-400">${data.weight}</span>
+                        </div>
+                        <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                            <span class="block text-xs text-slate-500 uppercase">Densidad (g/ml)</span>
+                            <span class="text-xl font-mono">${data.density}</span>
+                        </div>
+                         <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                            <span class="block text-xs text-slate-500 uppercase">Punto Fusión (°C)</span>
+                            <span class="text-xl font-mono">${data.mp}</span>
+                        </div>
+                        <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                            <span class="block text-xs text-slate-500 uppercase">Punto Ebullición (°C)</span>
+                            <span class="text-xl font-mono">${data.bp}</span>
+                        </div>
+                         <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                            <span class="block text-xs text-slate-500 uppercase">Valencias</span>
+                            <span class="text-lg font-mono">${data.valency}</span>
+                        </div>
+                        <div class="col-span-2 md:col-span-3 bg-slate-800 p-4 rounded border border-slate-700">
+                            <span class="block text-xs text-slate-500 uppercase">Configuración Electrónica</span>
+                            <span class="text-lg font-mono tracking-wider text-yellow-500">${data.config}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Cerrar modal con tecla ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+            }
+        });
+
+    </script>
+</body>
+</html>
