@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Tabla Periódica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- ESTILOS GENERALES --- */
+        .periodic-grid {
+            display: grid;
+            grid-template-columns: repeat(18, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            gap: 4px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .element-cell {
+            aspect-ratio: 1/1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            background-color: #e2e8f0; 
+            color: transparent; 
+        }
+        .element-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .show-text {
+            color: #1e293b;
+        }
+        .show-text-light {
+            color: #ffffff;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 50;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 0.5rem;
+            z-index: 20;
+            min-width: 150px;
+            overflow: hidden;
+        }
+        .dropdown-container:hover .dropdown-menu {
+            display: block;
+        }
+        
+        .floating-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 100;
+            max-width: 400px;
+            width: 90%;
+        }
+        .floating-modal.active {
+            display: block;
+        }
+        .close-floating {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body class="text-gray-800 font-sans" style="background-color: #020617;">
+
+    <!-- NAVBAR -->
+    <nav class="bg-indigo-900 text-white p-4 flex justify-between items-center shadow-md">
+        <div class="font-bold text-xl">Tu Sitio Web</div>
+        <ul class="flex space-x-4">
+            <!-- Cambio realizado: El enlace de Inicio ahora apunta a una URL externa -->
+            <li><a href="https://www.google.com" target="_blank" class="hover:text-indigo-300 transition">Inicio</a></li>
+            <li><button onclick="document.getElementById('seccion-tabla').scrollIntoView({behavior: 'smooth'})" class="font-bold text-indigo-100 hover:text-white hover:bg-indigo-700 px-3 py-1 rounded transition">La Tabla Periódica</button></li>
+        </ul>
+    </nav>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="container mx-auto px-4 py-12" id="seccion-tabla">
+        
+        <!-- SECCIÓN 1: ¿Qué es la tabla periódica? -->
+        <section class="mb-16 bg-white rounded-xl shadow-lg p-8">
+            <h2 class="text-3xl font-bold text-indigo-900 mb-8 border-b-2 border-indigo-100 pb-4">¿Qué es la tabla periódica de los elementos?</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="rounded-lg overflow-hidden shadow-md">
+                    <img src="https://images.unsplash.com/photo-1603126857599-f6e157826815?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="[Imagen genérica de la tabla periódica]" class="w-full h-auto object-cover aspect-video">
+                </div>
+                <div class="text-lg leading-relaxed text-gray-700">
+                    <p>
+                        Es un registro de todos los elementos químico conocidos por la humanidad. Hasta la actualidad lleva registrado 118 elementos entre sintéticos y naturales. La tabla periódica es actualizada a medida que pasa el tiempo. 
+                    </p>
+                    <p class="mt-4">
+                        La última actualización fue hecha en el 28 de noviembre del 2016 cuando se añadieron los elementos 113 (Nihonio), 115 (Moscovio), 117 (Tennessine), 118 (Oganesson), los cuales fueron aprobados por la International Union of Pure and Applied Chemistry (IUPAC).
+                    </p>
+                    
+                    <button onclick="toggleModal('modal-creador')" class="mt-8 inline-block bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                        Creador de la Tabla Periódica
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 2: División de la Tabla Periódica -->
+        <section class="mb-16 bg-white rounded-xl shadow-lg p-8">
+            <h2 class="text-3xl font-bold text-indigo-900 mb-8 border-b-2 border-indigo-100 pb-4">División de la Tabla Periódica</h2>
+            
+            <div class="flex flex-wrap gap-4 mb-8 relative">
+                <button onclick="activarModo('origen')" class="bg-slate-100 border border-slate-300 text-slate-700 font-semibold py-2 px-4 rounded hover:bg-slate-200 hover:shadow transition">Según su origen</button>
+
+                <div class="dropdown-container relative">
+                    <button class="bg-slate-100 border border-slate-300 text-slate-700 font-semibold py-2 px-4 rounded hover:bg-slate-200 hover:shadow transition flex items-center">
+                        Según su ubicación <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="dropdown-menu">
+                        <button onclick="activarModo('periodos')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700">Períodos</button>
+                        <button onclick="activarModo('grupos')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700">Grupos</button>
+                    </div>
+                </div>
+
+                <button onclick="activarModo('bloques')" class="bg-slate-100 border border-slate-300 text-slate-700 font-semibold py-2 px-4 rounded hover:bg-slate-200 hover:shadow transition">Según sus bloques electrónicos</button>
+                <button onclick="activarModo('naturaleza')" class="bg-slate-100 border border-slate-300 text-slate-700 font-semibold py-2 px-4 rounded hover:bg-slate-200 hover:shadow transition">Según su naturaleza química</button>
+            </div>
+
+            <div id="leyenda-container" class="mb-6 min-h-[40px] flex flex-wrap gap-4 items-center p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <span class="text-gray-500 italic">Selecciona una opción arriba para colorear la tabla.</span>
+            </div>
+
+            <div class="overflow-x-auto pb-8">
+                <div id="tabla-grid" class="periodic-grid min-w-[800px]"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODALES -->
+    <div id="modal-creador" class="modal-overlay">
+        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 relative">
+            <button onclick="toggleModal('modal-creador')" class="absolute top-4 right-4 text-gray-500 hover:text-red-500 font-bold text-xl transition">✕</button>
+            <h3 class="text-2xl font-bold text-indigo-900 mb-6 border-b pb-2">Creador de la Tabla Periódica</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="flex flex-col items-center">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Dmitri_Mendeleev_1890s.jpg/800px-Dmitri_Mendeleev_1890s.jpg" alt="[Imagen de Dmitri Mendeleyev]" class="w-full max-w-sm rounded-lg shadow-md mb-3 object-cover aspect-[3/4]">
+                    <span class="font-bold text-lg text-gray-800">Dmitri Mendeléyev</span>
+                </div>
+                <div class="text-gray-700 space-y-4 text-lg">
+                    <p>Fue creada en 1869 por el químico ruso Dmitri Mendeléyev, quien la organizó inicialmente por masa atómica.</p>
+                    <p>Mendeléyev dejó espacios vacíos para elementos aún no descubiertos, prediciendo sus propiedades con asombrosa precisión.</p>
+                    <p>Con el tiempo, la tabla se fue actualizando hasta ordenarse según el número atómico, que es la forma que usamos hoy en día.</p>
+                    <p>La versión moderna incluye 118 elementos, con clasificaciones según grupos, períodos, bloques y series, y permite estudiar su naturaleza química y origen.</p>
+                    <div class="mt-6">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Mendelejevs_periodiska_system_1871.png/800px-Mendelejevs_periodiska_system_1871.png" alt="[Imagen antigua de la tabla de Mendeleyev]" class="w-full rounded-lg shadow border border-gray-200 mt-4">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Info Modals -->
+    <div id="info-naturales" class="floating-modal border-t-4 border-green-500">
+        <span class="close-floating" onclick="cerrarFloating('info-naturales')">✕</span>
+        <h4 class="text-xl font-bold text-green-700 mb-3">Elementos Naturales</h4>
+        <p class="text-gray-700 text-sm leading-relaxed">Se encuentran de forma natural en la Tierra. No necesitan ser creados por el ser humano. Están presentes en minerales, aire, agua o seres vivos. Ejemplos: hidrógeno, carbono, oxígeno, hierro, oro. Hay aproximadamente 94 elementos naturales que van desde el Hidrógeno (H) el número 1, hasta el Plutonio (Pu) el número 94.</p>
+    </div>
+
+    <div id="info-sinteticos" class="floating-modal border-t-4 border-blue-500">
+        <span class="close-floating" onclick="cerrarFloating('info-sinteticos')">✕</span>
+        <h4 class="text-xl font-bold text-blue-700 mb-3">Elementos Sintéticos</h4>
+        <p class="text-gray-700 text-sm leading-relaxed">No se encuentran de forma natural en la Tierra. Son creados artificialmente en laboratorios. Se obtienen mediante reacciones nucleares. Ejemplos: americio, oganesón. Hay aproximadamente 24 elementos sintéticos que van desde el Americio (Am) representado como el elemento 95, hasta el Oganesón (Og) el número 118.</p>
+    </div>
+
+    <div id="info-periodos" class="floating-modal border-t-4 border-purple-500">
+        <span class="close-floating" onclick="cerrarFloating('info-periodos')">✕</span>
+        <h4 class="text-xl font-bold text-purple-700 mb-3">Períodos</h4>
+        <p class="text-gray-700 text-sm leading-relaxed">Corresponde a las filas horizontales de la tabla periódica. Cada período es una capa que indica los niveles energéticos de un átomo.</p>
+    </div>
+
+    <div id="info-grupos" class="floating-modal border-t-4 border-orange-500">
+        <span class="close-floating" onclick="cerrarFloating('info-grupos')">✕</span>
+        <h4 class="text-xl font-bold text-orange-700 mb-3">Grupos</h4>
+        <p class="text-gray-700 text-sm leading-relaxed">Corresponde a las columnas de la tabla periódica.</p>
+    </div>
+
+    <script>
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.toggle('active');
+        }
+
+        function abrirFloating(id) {
+            document.querySelectorAll('.floating-modal').forEach(m => m.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function cerrarFloating(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        const simbolos = ["H","He","Li","Be","B","C","N","O","F","Ne","Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn","Ga","Ge","As","Se","Br","Kr","Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd","In","Sn","Sb","Te","I","Xe","Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu","Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn","Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"];
+        const elementos = [];
+
+        for (let i = 1; i <= 118; i++) {
+            let el = {
+                numero: i,
+                simbolo: simbolos[i-1],
+                origen: i <= 94 ? 'natural' : 'sintetico',
+            };
+
+            if (i >= 57 && i <= 71) { el.periodo = 6; el.grupo = 'Lantánido'; el.gridRow = 9; el.gridCol = i - 57 + 4; el.bloque = 'f'; el.naturaleza = 'tierras_raras'; }
+            else if (i >= 89 && i <= 103) { el.periodo = 7; el.grupo = 'Actínido'; el.gridRow = 10; el.gridCol = i - 89 + 4; el.bloque = 'f'; el.naturaleza = 'tierras_raras'; }
+            else {
+                // Cálculo de posiciones
+                if(i===1) {el.gridRow=1; el.gridCol=1; el.periodo=1; el.grupo=1;}
+                else if(i===2) {el.gridRow=1; el.gridCol=18; el.periodo=1; el.grupo=18;}
+                // Período 2: i=3-10
+                else if(i>=3 && i<=10) {el.gridRow=2; el.gridCol= (i<5) ? i-2 : i+8; el.periodo=2; el.grupo=el.gridCol;}
+                // Período 3: i=11-18 (Corregido para ajustar Aluminio debajo de Boro)
+                else if(i>=11 && i<=18) {el.gridRow=3; el.gridCol= (i<13) ? i-10 : i; el.periodo=3; el.grupo=el.gridCol;}
+                else if(i>=19 && i<=36) {el.gridRow=4; el.gridCol= i-18; el.periodo=4; el.grupo=el.gridCol;}
+                else if(i>=37 && i<=54) {el.gridRow=5; el.gridCol= i-36; el.periodo=5; el.grupo=el.gridCol;}
+                else if(i>=55 && i<=86) {el.gridRow=6; el.gridCol= (i<57) ? i-54 : i-68; el.periodo=6; el.grupo=el.gridCol;}
+                else if(i>=87 && i<=118) {el.gridRow=7; el.gridCol= (i<89) ? i-86 : i-100; el.periodo=7; el.grupo=el.gridCol;}
+
+                if (el.grupo === 1 || el.grupo === 2 || el.numero === 2) el.bloque = 's';
+                else if (el.grupo >= 13 && el.grupo <= 18 && el.numero !== 2) el.bloque = 'p';
+                else if (el.grupo >= 3 && el.grupo <= 12) el.bloque = 'd';
+
+                if (el.grupo === 1 && el.numero !== 1) el.naturaleza = 'alcalinos';
+                else if (el.grupo === 2) el.naturaleza = 'alcalinoterreos';
+                else if (el.grupo >= 3 && el.grupo <= 12) el.naturaleza = 'metales'; 
+                else if (el.grupo === 13) el.naturaleza = 'terreos';
+                else if (el.grupo === 14) el.naturaleza = 'carbonoideos';
+                else if (el.grupo === 15) el.naturaleza = 'nitrogenoides';
+                else if (el.grupo === 16) el.naturaleza = 'calcogenos';
+                else if (el.grupo === 17) el.naturaleza = 'halogenos';
+                else if (el.grupo === 18) el.naturaleza = 'gases_nobles';
+                else el.naturaleza = 'otros';
+            }
+            elementos.push(el);
+        }
+
+        const tablaGrid = document.getElementById('tabla-grid');
+        function renderizarTabla() {
+            tablaGrid.innerHTML = '';
+            elementos.forEach(el => {
+                const cell = document.createElement('div');
+                cell.className = `element-cell cell-${el.numero}`;
+                cell.style.gridColumn = el.gridCol;
+                cell.style.gridRow = el.gridRow;
+                cell.innerHTML = `<span class="text-[0.5rem] mb-1 opacity-80">${el.numero}</span><span class="text-lg font-black">${el.simbolo}</span>`;
+                cell.dataset.origen = el.origen;
+                cell.dataset.periodo = el.periodo;
+                cell.dataset.grupo = el.grupo;
+                cell.dataset.bloque = el.bloque;
+                cell.dataset.naturaleza = el.naturaleza;
+                tablaGrid.appendChild(cell);
+            });
+        }
+
+        const coloresOrigen = { 'natural': '#86efac', 'sintetico': '#93c5fd' };
+        const coloresBloques = { 's': '#fca5a5', 'p': '#fcd34d', 'd': '#cbd5e1', 'f': '#c4b5fd' };
+        const coloresNaturaleza = {
+            'alcalinos': '#f87171', 'alcalinoterreos': '#fb923c', 'metales': '#fde047', 
+            'terreos': '#a3e635', 'carbonoideos': '#4ade80', 'nitrogenoides': '#34d399', 
+            'calcogenos': '#2dd4bf', 'halogenos': '#38bdf8', 'gases_nobles': '#c084fc', 
+            'tierras_raras': '#f472b6', 'otros': '#cbd5e1'
+        };
+
+        function activarModo(modo) {
+            const celdas = document.querySelectorAll('.element-cell');
+            const leyenda = document.getElementById('leyenda-container');
+            celdas.forEach(c => {
+                c.classList.remove('show-text', 'show-text-light');
+                c.style.backgroundColor = '#e2e8f0';
+            });
+
+            if (modo === 'origen') {
+                leyenda.innerHTML = `
+                    <div class="font-bold text-gray-700 mr-2">Leyenda:</div>
+                    <button onclick="abrirFloating('info-naturales')" class="flex items-center hover:bg-green-50 p-1 rounded transition border border-transparent hover:border-green-200">
+                        <div class="w-4 h-4 rounded-sm mr-2" style="background-color: ${coloresOrigen['natural']}"></div>
+                        <span class="text-sm font-semibold underline decoration-green-400">Elementos naturales</span>
+                    </button>
+                    <button onclick="abrirFloating('info-sinteticos')" class="flex items-center hover:bg-blue-50 p-1 rounded transition border border-transparent hover:border-blue-200">
+                        <div class="w-4 h-4 rounded-sm mr-2" style="background-color: ${coloresOrigen['sintetico']}"></div>
+                        <span class="text-sm font-semibold underline decoration-blue-400">Elementos sintéticos</span>
+                    </button>
+                `;
+                celdas.forEach(c => {
+                    c.style.backgroundColor = coloresOrigen[c.dataset.origen];
+                    c.classList.add('show-text');
+                });
+            } else if (modo === 'periodos') {
+                leyenda.innerHTML = `<button onclick="abrirFloating('info-periodos')" class="text-sm font-bold text-purple-700 bg-purple-100 px-3 py-1 rounded underline decoration-purple-400">Períodos</button>`;
+                celdas.forEach(c => {
+                    const p = parseInt(c.dataset.periodo);
+                    c.style.backgroundColor = `hsl(${p * 45}, 80%, 80%)`;
+                });
+            } else if (modo === 'grupos') {
+                leyenda.innerHTML = `<button onclick="abrirFloating('info-grupos')" class="text-sm font-bold text-orange-700 bg-orange-100 px-3 py-1 rounded underline decoration-orange-400">Grupos</button>`;
+                celdas.forEach(c => {
+                    const g = c.dataset.grupo;
+                    if(g !== 'Lantánido' && g !== 'Actínido') {
+                        c.style.backgroundColor = `hsl(${parseInt(g) * 20}, 85%, 75%)`;
+                    } else { c.style.backgroundColor = '#d1d5db'; }
+                });
+            } else if (modo === 'bloques') {
+                leyenda.innerHTML = `<div class="font-bold text-gray-700 mr-2">Bloques:</div>` + Object.keys(coloresBloques).map(b => `<div class="flex items-center mr-3"><div class="w-4 h-4 rounded-sm mr-1" style="background-color: ${coloresBloques[b]}"></div><span class="text-sm">Bloque ${b}</span></div>`).join('');
+                celdas.forEach(c => { c.style.backgroundColor = coloresBloques[c.dataset.bloque]; });
+            } else if (modo === 'naturaleza') {
+                leyenda.innerHTML = `<div class="font-bold text-gray-700 mr-2 w-full mb-1">Familias:</div><div class="flex flex-wrap gap-3">` + Object.keys(coloresNaturaleza).filter(n=>n!=='otros').map(n => `<div class="flex items-center"><div class="w-3 h-3 rounded-sm mr-1" style="background-color: ${coloresNaturaleza[n]}"></div><span class="text-xs capitalize">${n.replace('_', ' ')}</span></div>`).join('') + `</div>`;
+                celdas.forEach(c => { c.style.backgroundColor = coloresNaturaleza[c.dataset.naturaleza]; });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderizarTabla);
+    </script>
+</body>
+</html>
